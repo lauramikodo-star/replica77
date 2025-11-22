@@ -38,10 +38,12 @@ public class ApkProcessor {
     private static final String A_EXPORTED     = "exported";
     private static final String A_INIT_ORDER   = "initOrder";
     private static final String A_PERMISSION   = "permission";
+    private static final String A_EXTRACT_NATIVE_LIBS = "extractNativeLibs";
     private static final int ID_ANDROID_NAME        = 0x01010003;
     private static final int ID_ANDROID_AUTHORITIES = 0x01010018;
     private static final int ID_ANDROID_EXPORTED    = 0x0101001e;
     private static final int ID_ANDROID_INIT_ORDER  = 0x01010427;
+    private static final int ID_ANDROID_EXTRACT_NATIVE_LIBS = 0x010104ea;
     private static final int ID_ANDROID_MIN_SDK     = 0x0101020c;
     private static final int ID_ANDROID_PERMISSION  = 0x01010006;
     private static final int ID_ANDROID_THEME       = 0x01010000;
@@ -268,6 +270,12 @@ public class ApkProcessor {
 
         addPermissionIfMissing(root, PERM_READ_EXTERNAL);
         addPermissionIfMissing(root, PERM_WRITE_EXTERNAL);
+
+        // Force extractNativeLibs=true because we are not zipaligning the native libraries
+        // in the ZipOutputStream. Android 11+ requires uncompressed native libs to be
+        // page-aligned if extractNativeLibs is false.
+        app.getOrCreateAndroidAttribute(A_EXTRACT_NATIVE_LIBS, ID_ANDROID_EXTRACT_NATIVE_LIBS)
+            .setValueAsBoolean(true);
 
         boolean providerInjectedOrPresent = false;
         for (ResXmlElement p : app.listElements(E_PROVIDER)) {
