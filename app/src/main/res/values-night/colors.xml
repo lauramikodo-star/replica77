@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark theme colors -->
+    <color name="colorPrimary">#90CAF9</color>
+    <color name="colorPrimaryVariant">#42A5F5</color>
+    <color name="colorSecondary">#80CBC4</color>
+    <color name="colorSecondaryVariant">#4DB6AC</color>
+    <color name="colorOnPrimary">#000000</color>
+    <color name="colorOnSecondary">#000000</color>
+    <color name="colorSurface">#1E1E1E</color>
+    <color name="colorOnSurface">#E0E0E0</color>
+    <color name="colorBackground">#121212</color>
+    <color name="colorError">#CF6679</color>
+    
+    <!-- Custom colors for better UI -->
+    <color name="cardBackground">#1E1E1E</color>
+    <color name="divider">#2E2E2E</color>
+</resources>
