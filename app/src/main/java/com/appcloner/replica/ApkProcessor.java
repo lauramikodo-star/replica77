@@ -401,7 +401,7 @@ public class ApkProcessor {
             fakeCameraActivity = activity;
         }
 
-        ensureFakeCameraActivityTheme(fakeCameraActivity);
+        // ensureFakeCameraActivityTheme(fakeCameraActivity);
 
         doc.refresh();
 
@@ -631,13 +631,8 @@ public class ApkProcessor {
     private ZipEntry createZipEntry(String name, byte[] data) {
         ZipEntry e = new ZipEntry(name);
         e.setTime(0L);
-        e.setMethod(ZipEntry.STORED);
-        long size = data.length;
-        e.setSize(size);
-        e.setCompressedSize(size);
-        CRC32 crc = new CRC32();
-        crc.update(data);
-        e.setCrc(crc.getValue());
+        e.setMethod(ZipEntry.DEFLATED);
+        // Let ZipOutputStream handle size and CRC for DEFLATED entries
         return e;
     }
 
