@@ -47,6 +47,7 @@ public class ApkProcessor {
     private static final int ID_ANDROID_THEME       = 0x01010000;
     private static final int ID_ANDROID_LABEL       = 0x01010001;
     private static final int ID_ANDROID_ICON        = 0x01010002;
+    private static final int ID_ANDROID_EXTRACT_NATIVE_LIBS = 0x010104ea;
     private static final Pattern SIG_PATH = Pattern.compile(
             "^META-INF/(.+\\.(RSA|DSA|EC|SF)|MANIFEST\\.MF)$", Pattern.CASE_INSENSITIVE);
     private static final Pattern DEX_NAME = Pattern.compile(
@@ -243,8 +244,24 @@ public class ApkProcessor {
         String pkg = pkgAttr.getValueAsString();
         String originalPkg = pkg;
 
+        // Remove build metadata attributes that might cause parsing errors
+        removeAttribute(root, "android:compileSdkVersion");
+        removeAttribute(root, "android:compileSdkVersionCodename");
+        removeAttribute(root, "platformBuildVersionCode");
+        removeAttribute(root, "platformBuildVersionName");
+
         ResXmlElement app = root.getElement(E_APPLICATION);
         if (app == null) throw new IOException("<application> missing");
+
+        // Force extractNativeLibs="true" because we compress .so files
+        ResXmlAttribute extractNativeLibsAttr = app.searchAttributeByResourceId(ID_ANDROID_EXTRACT_NATIVE_LIBS);
+        if (extractNativeLibsAttr == null) {
+            extractNativeLibsAttr = app.searchAttributeByName("android:extractNativeLibs");
+        }
+        if (extractNativeLibsAttr == null) {
+            extractNativeLibsAttr = app.createAndroidAttribute("extractNativeLibs", ID_ANDROID_EXTRACT_NATIVE_LIBS);
+        }
+        extractNativeLibsAttr.setValueAsBoolean(true);
 
         String cloningMode = CLONING_MODE_REPLACE;
         if (clonerConfig != null) {
@@ -773,6 +790,14 @@ public class ApkProcessor {
             if (kids != null) for (File k : kids) deleteRec(k);
         }
         f.delete();
+    }
+
+    private void removeAttribute(ResXmlElement element, String name) {
+        if (element == null || name == null) return;
+        ResXmlAttribute attr = element.searchAttributeByName(name);
+        if (attr != null) {
+            attr.removeSelf();
+        }
     }
 
     private static class ManifestPatchResult {
