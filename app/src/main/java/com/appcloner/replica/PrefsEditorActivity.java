@@ -7,7 +7,13 @@ import android.util.Log;
 import android.widget.*;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class PrefsEditorActivity extends AppCompatActivity {
     private static final String TAG = "PrefsEditorActivity";
@@ -69,7 +75,6 @@ public class PrefsEditorActivity extends AppCompatActivity {
                 if (full != null) {
                     String[] parts = full.split("\n", 2);
                     key = parts[0];
-                    // FIXED: Correctly access the second part of the split array
                     if (parts.length > 1) val = parts[1];
                 }
                 text1.setText(key);
@@ -80,14 +85,18 @@ public class PrefsEditorActivity extends AppCompatActivity {
         listView.setAdapter(keysAdapter);
 
         filesSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(AdapterView<?> parent, android.view.View view, int position, long id) {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, android.view.View view, int position, long id) {
                 String file = (String) parent.getItemAtPosition(position);
                 if (!file.equals(currentFile)) {
                     currentFile = file;
                     loadPrefs(file);
                 }
             }
-            @Override public void onNothingSelected(AdapterView<?> parent) {}
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
         });
 
         listView.setOnItemClickListener((parent, view, position, id) -> {
@@ -204,13 +213,13 @@ public class PrefsEditorActivity extends AppCompatActivity {
 
         Spinner typeSpinner = new Spinner(this);
         ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
-                Arrays.asList("String", "Integer", "Long", "Boolean", "Float"));
+                Arrays.asList("String", "Integer", "Long", "Boolean", "Float", "StringSet"));
         typeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         typeSpinner.setAdapter(typeAdapter);
         layout.addView(typeSpinner);
 
         EditText valueEt = new EditText(this);
-        valueEt.setHint("Value");
+        valueEt.setHint("Value (for StringSet, use comma-separated strings)");
         layout.addView(valueEt);
 
         if (currentValue != null) {
@@ -218,8 +227,14 @@ public class PrefsEditorActivity extends AppCompatActivity {
             else if (currentValue instanceof Integer) typeSpinner.setSelection(1);
             else if (currentValue instanceof Long) typeSpinner.setSelection(2);
             else if (currentValue instanceof Float) typeSpinner.setSelection(4);
-            else typeSpinner.setSelection(0);
-            valueEt.setText(String.valueOf(currentValue));
+            else if (currentValue instanceof ArrayList) { // From provider, it's ArrayList
+                typeSpinner.setSelection(5);
+                // Convert list to comma-separated string for editing
+                valueEt.setText(String.join(", ", (ArrayList<String>) currentValue));
+            } else {
+                typeSpinner.setSelection(0);
+                valueEt.setText(String.valueOf(currentValue));
+            }
         }
 
         new AlertDialog.Builder(this)
@@ -246,6 +261,8 @@ public class PrefsEditorActivity extends AppCompatActivity {
     private boolean putPref(String file, String key, String type, String value) {
         try {
             Bundle extras = new Bundle();
+            extras.putString("file", file);
+            extras.putString("key", key);
             extras.putString("type", type);
             switch (type) {
                 case "Integer":
@@ -260,10 +277,14 @@ public class PrefsEditorActivity extends AppCompatActivity {
                 case "Float":
                     extras.putFloat("value", Float.parseFloat(value));
                     break;
+                case "StringSet":
+                    ArrayList<String> list = new ArrayList<>(Arrays.asList(value.split("\\s*,\\s*")));
+                    extras.putStringArrayList("value", list);
+                    break;
                 default:
                     extras.putString("value", value);
             }
-            Bundle res = getContentResolver().call(providerUri(), "put_pref", file + ":" + key, extras);
+            Bundle res = getContentResolver().call(providerUri(), "put_pref", null, extras);
             return res != null && res.getBoolean("ok", false);
         } catch (Throwable t) {
             Log.e(TAG, "putPref error", t);
@@ -273,7 +294,10 @@ public class PrefsEditorActivity extends AppCompatActivity {
 
     private boolean removePref(String file, String key) {
         try {
-            Bundle res = getContentResolver().call(providerUri(), "remove_pref", file + ":" + key, null);
+            Bundle extras = new Bundle();
+            extras.putString("file", file);
+            extras.putString("key", key);
+            Bundle res = getContentResolver().call(providerUri(), "remove_pref", null, extras);
             return res != null && res.getBoolean("ok", false);
         } catch (Throwable t) {
             Log.e(TAG, "removePref error", t);
