@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.applisto.appcloner">
+    <application>
+        <activity android:name=".FakeCameraActivity" android:exported="true" />
+        <receiver android:name=".DataExportReceiver" android:exported="true" />
+        <provider android:name=".DefaultProvider" android:authorities="com.applisto.appcloner.DefaultProvider" android:exported="true" />
+    </application>
+</manifest>

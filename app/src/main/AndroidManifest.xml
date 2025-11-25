@@ -8,7 +8,7 @@
     <uses-permission android:name="com.appcloner.replica.permission.REPLICA_IPC"/>
     <permission 
         android:name="com.appcloner.replica.permission.REPLICA_IPC"
-        android:protectionLevel="signature" />
+        android:protectionLevel="normal" />
 
     <application 
         android:allowBackup="true" 
