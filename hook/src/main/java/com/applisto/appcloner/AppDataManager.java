@@ -1,8 +1,13 @@
 // File: com/applisto/appcloner/AppDataManager.java (Extended Version)
 package com.applisto.appcloner;
 
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Environment;
+import android.provider.MediaStore;
 import android.util.Log;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -10,6 +15,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -37,48 +43,85 @@ public class AppDataManager {
      * Exports the app's private data (internal storage) AND external data directory to a ZIP file in internal storage.
      * The ZIP will contain two top-level folders: INTERNAL and EXTERNAL.
      * @return The File object representing the exported ZIP, or null on failure.
+     * @throws IOException If an I/O error occurs.
      */
-    public File exportAppData() {
+    public File exportAppData() throws IOException {
         File internalDir = mContext.getFilesDir().getParentFile(); // Points to /data/data/<package_name>
         File externalDir = mContext.getExternalFilesDir(null); // Points to /Android/data/<package_name>/files
         // Note: You might also want to include other external dirs like getExternalCacheDir(), getExternalFilesDirs() for other media types.
 
         if (internalDir == null || !internalDir.exists()) {
-            Log.e(TAG, "Could not access app's internal data directory.");
-            return null;
+            throw new IOException("Could not access app's internal data directory.");
         }
         if (externalDir == null || !externalDir.exists()) {
             Log.w(TAG, "App's external data directory does not exist or is not accessible. Skipping external data.");
             // We'll still proceed with internal data.
         }
 
-        File outputFile = new File(mContext.getFilesDir(), APP_DATA_FILENAME); // Save inside app's private files dir
-        Log.d(TAG, "Exporting app data from INTERNAL: " + internalDir.getAbsolutePath() +
-                " and EXTERNAL: " + (externalDir != null ? externalDir.getAbsolutePath() : "N/A") +
-                " to: " + outputFile.getAbsolutePath());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContentResolver resolver = mContext.getContentResolver();
+            ContentValues contentValues = new ContentValues();
+            contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, APP_DATA_FILENAME);
+            contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "application/zip");
+            contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
 
-        try (FileOutputStream fos = new FileOutputStream(outputFile);
-             ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos))) {
+            Uri uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues);
+            if (uri == null) {
+                throw new IOException("Failed to create new MediaStore record.");
+            }
 
-            // Export Internal Data (under the "INTERNAL/" prefix)
-            if (internalDir.exists()) {
+            try (OutputStream os = resolver.openOutputStream(uri);
+                 ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(os))) {
+
                 addDirectoryToZip(zos, internalDir, internalDir.getAbsolutePath().length() + 1, INTERNAL_DIR_NAME + "/");
-            }
+                if (externalDir != null && externalDir.exists()) {
+                    addDirectoryToZip(zos, externalDir, externalDir.getAbsolutePath().length() + 1, EXTERNAL_DIR_NAME + "/");
+                }
 
-            // Export External Data (under the "EXTERNAL/" prefix)
-            if (externalDir != null && externalDir.exists()) {
-                addDirectoryToZip(zos, externalDir, externalDir.getAbsolutePath().length() + 1, EXTERNAL_DIR_NAME + "/");
-            }
+                Log.i(TAG, "App data exported successfully to: " + uri.toString());
+                // We can't return a File object anymore, so we return null but the export was successful.
+                // The caller should be updated to handle this.
+                return null;
 
-            Log.i(TAG, "App data exported successfully to: " + outputFile.getAbsolutePath());
-            return outputFile;
-
-        } catch (IOException e) {
-            Log.e(TAG, "Error exporting app data", e);
-            if (outputFile.exists()) {
-                outputFile.delete(); // Clean up failed file
+            } catch (IOException e) {
+                Log.e(TAG, "Error exporting app data to MediaStore", e);
+                resolver.delete(uri, null, null);
+                throw e;
             }
-            return null;
+        } else {
+            File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            if (downloadsDir == null || (!downloadsDir.exists() && !downloadsDir.mkdirs())) {
+                Log.e(TAG, "Primary external storage is not available or could not create Downloads directory. Defaulting to internal storage.");
+                downloadsDir = mContext.getFilesDir();
+            }
+            File outputFile = new File(downloadsDir, APP_DATA_FILENAME); // Save in public Downloads directory
+            Log.d(TAG, "Exporting app data from INTERNAL: " + internalDir.getAbsolutePath() +
+                    " and EXTERNAL: " + (externalDir != null ? externalDir.getAbsolutePath() : "N/A") +
+                    " to: " + outputFile.getAbsolutePath());
+
+            try (FileOutputStream fos = new FileOutputStream(outputFile);
+                 ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos))) {
+
+                // Export Internal Data (under the "INTERNAL/" prefix)
+                if (internalDir.exists()) {
+                    addDirectoryToZip(zos, internalDir, internalDir.getAbsolutePath().length() + 1, INTERNAL_DIR_NAME + "/");
+                }
+
+                // Export External Data (under the "EXTERNAL/" prefix)
+                if (externalDir != null && externalDir.exists()) {
+                    addDirectoryToZip(zos, externalDir, externalDir.getAbsolutePath().length() + 1, EXTERNAL_DIR_NAME + "/");
+                }
+
+                Log.i(TAG, "App data exported successfully to: " + outputFile.getAbsolutePath());
+                return outputFile;
+
+            } catch (IOException e) {
+                Log.e(TAG, "Error exporting app data", e);
+                if (outputFile.exists()) {
+                    outputFile.delete(); // Clean up failed file
+                }
+                throw e;
+            }
         }
     }
 

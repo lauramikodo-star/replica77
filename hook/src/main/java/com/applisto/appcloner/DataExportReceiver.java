@@ -3,8 +3,12 @@ package com.applisto.appcloner;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Build;
 import android.util.Log;
 import java.io.File;
+import java.io.IOException;
 
 public class DataExportReceiver extends BroadcastReceiver {
     private static final String TAG = "DataExportReceiver";
@@ -35,20 +39,25 @@ public class DataExportReceiver extends BroadcastReceiver {
                 AppDataManager dataManager = new AppDataManager(context, packageName, false);
 
             // Perform the export
-            File exportedFile = dataManager.exportAppData();
-
-            // Send result back to the cloner app
             Intent resultIntent = new Intent("com.appcloner.replica.EXPORT_COMPLETED");
             resultIntent.setPackage("com.appcloner.replica");
             resultIntent.putExtra("exported_package", packageName);
-            if (exportedFile != null) {
-                resultIntent.putExtra("export_success", true);
-                resultIntent.putExtra("export_path", exportedFile.getAbsolutePath());
-                Log.d(TAG, "Export successful, notifying cloner app at: " + exportedFile.getAbsolutePath());
-            } else {
+
+            try {
+                File exportedFile = dataManager.exportAppData();
+                if (exportedFile != null) {
+                    resultIntent.putExtra("export_success", true);
+                    resultIntent.putExtra("export_path", exportedFile.getAbsolutePath());
+                    Log.d(TAG, "Export successful, notifying cloner app at: " + exportedFile.getAbsolutePath());
+                } else {
+                    resultIntent.putExtra("export_success", true);
+                    resultIntent.putExtra("export_path", "Downloads");
+                    Log.d(TAG, "Export successful, notifying cloner app.");
+                }
+            } catch (IOException e) {
+                Log.e(TAG, "Export failed", e);
                 resultIntent.putExtra("export_success", false);
-                resultIntent.putExtra("error_message", "AppDataManager.exportAppData() returned null");
-                Log.e(TAG, "Export failed: AppDataManager returned null.");
+                resultIntent.putExtra("error_message", e.getMessage());
             }
             context.sendBroadcast(resultIntent);
 
