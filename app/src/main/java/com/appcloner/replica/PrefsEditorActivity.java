@@ -26,6 +26,9 @@ public class PrefsEditorActivity extends AppCompatActivity {
     private final Map<String, Object> currentPrefs = new LinkedHashMap<>();
     private String currentFile;
 
+    // Use a static authority for the provider
+    private static final String PROVIDER_AUTHORITY = "com.applisto.appcloner.DefaultProvider";
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -60,7 +63,7 @@ public class PrefsEditorActivity extends AppCompatActivity {
             finish();
             return;
         }
-        authority = targetPackage + ".com.applisto.appcloner.DefaultProvider";
+        authority = PROVIDER_AUTHORITY;
         setTitle(appName != null ? ("Prefs: " + appName) : "Preference Editor");
 
         keysAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_2, android.R.id.text1, new ArrayList<>()) {
@@ -88,7 +91,7 @@ public class PrefsEditorActivity extends AppCompatActivity {
             @Override
             public void onItemSelected(AdapterView<?> parent, android.view.View view, int position, long id) {
                 String file = (String) parent.getItemAtPosition(position);
-                if (!file.equals(currentFile)) {
+                if (currentFile == null || !currentFile.equals(file)) {
                     currentFile = file;
                     loadPrefs(file);
                 }
@@ -285,7 +288,12 @@ public class PrefsEditorActivity extends AppCompatActivity {
                     extras.putString("value", value);
             }
             Bundle res = getContentResolver().call(providerUri(), "put_pref", null, extras);
-            return res != null && res.getBoolean("ok", false);
+            if (res == null) return false;
+            if (!res.getBoolean("ok", false)) {
+                Log.w(TAG, "putPref failed: " + res.getString("error"));
+                return false;
+            }
+            return true;
         } catch (Throwable t) {
             Log.e(TAG, "putPref error", t);
             return false;
@@ -298,7 +306,12 @@ public class PrefsEditorActivity extends AppCompatActivity {
             extras.putString("file", file);
             extras.putString("key", key);
             Bundle res = getContentResolver().call(providerUri(), "remove_pref", null, extras);
-            return res != null && res.getBoolean("ok", false);
+            if (res == null) return false;
+            if (!res.getBoolean("ok", false)) {
+                Log.w(TAG, "removePref failed: " + res.getString("error"));
+                return false;
+            }
+            return true;
         } catch (Throwable t) {
             Log.e(TAG, "removePref error", t);
             return false;
