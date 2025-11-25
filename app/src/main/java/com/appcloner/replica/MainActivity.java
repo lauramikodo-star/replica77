@@ -64,6 +64,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String CLONING_MODE_KEY = "cloning_mode";
     private static final String CLONING_MODE_REPLACE = "replace_original";
     private static final String CLONING_MODE_GENERATE = "generate_new_package";
+    private static final int WRITE_EXTERNAL_STORAGE_REQUEST_CODE = 101;
     private static final Map<String, String> SPECIAL_TOKENS;
     private static final Map<String, List<String>> GROUP_CHILD_ORDER;
 
@@ -2148,7 +2149,29 @@ public class MainActivity extends AppCompatActivity {
         }
         return out;
     }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == WRITE_EXTERNAL_STORAGE_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission was granted, try the export again
+                if (currentSettingsApp != null) {
+                    triggerExportData(currentSettingsApp.packageName);
+                }
+            } else {
+                Toast.makeText(this, "Write permission is required to export data.", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
     private void triggerExportData(String targetPackageName) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, WRITE_EXTERNAL_STORAGE_REQUEST_CODE);
+                return;
+            }
+        }
+
         Log.d(TAG, "Triggering data export for: " + targetPackageName);
         statusTxt.setText("Requesting data export for " + targetPackageName + "...");
         Intent exportIntent = new Intent("com.applisto.appcloner.ACTION_EXPORT_DATA");
