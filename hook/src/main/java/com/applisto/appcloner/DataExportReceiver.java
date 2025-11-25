@@ -8,16 +8,31 @@ import java.io.File;
 
 public class DataExportReceiver extends BroadcastReceiver {
     private static final String TAG = "DataExportReceiver";
-    private static final String ACTION_EXPORT_DATA = "com.applisto.appcloner.ACTION_EXPORT_DATA";
+    public static final String ACTION_EXPORT_DATA = "com.applisto.appcloner.ACTION_EXPORT_DATA";
+
+    // Static lock to prevent concurrent exports (e.g. from double receiver registration)
+    private static final Object LOCK = new Object();
+    private static boolean sIsExporting = false;
 
     @Override
     public void onReceive(Context context, Intent intent) {
         if (ACTION_EXPORT_DATA.equals(intent.getAction())) {
-            Log.d(TAG, "Received export data request.");
-            String packageName = context.getPackageName();
+            Log.i(TAG, "Received export data request.");
 
-            // Instantiate AppDataManager
-            AppDataManager dataManager = new AppDataManager(context, packageName, false);
+            synchronized (LOCK) {
+                if (sIsExporting) {
+                    Log.w(TAG, "Export already in progress, skipping duplicate request.");
+                    return;
+                }
+                sIsExporting = true;
+            }
+
+            try {
+                String packageName = context.getPackageName();
+                Log.i(TAG, "Starting export for package: " + packageName);
+
+                // Instantiate AppDataManager
+                AppDataManager dataManager = new AppDataManager(context, packageName, false);
 
             // Perform the export
             File exportedFile = dataManager.exportAppData();
@@ -36,6 +51,12 @@ public class DataExportReceiver extends BroadcastReceiver {
                 Log.e(TAG, "Export failed: AppDataManager returned null.");
             }
             context.sendBroadcast(resultIntent);
+
+            } finally {
+                synchronized (LOCK) {
+                    sIsExporting = false;
+                }
+            }
         }
     }
 }

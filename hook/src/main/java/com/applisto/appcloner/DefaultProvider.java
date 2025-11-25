@@ -11,6 +11,8 @@ public class DefaultProvider extends AbstractContentProvider {
 
     private static final String TAG = "DefaultProvider";
 
+    // Dynamic receiver reference
+    private static DataExportReceiver sExportReceiver;
 
     // =============================
     // Android ContentProvider Lifecycle: onCreate()
@@ -49,8 +51,18 @@ public class DefaultProvider extends AbstractContentProvider {
 
             // 5. Register export broadcast receiver
             Log.i(TAG, "Registering export receiver...");
-            // Use manifest-registered receiver instead of dynamic one to avoid duplication
-            Log.i(TAG, "Export receiver registered via manifest");
+            // Use dynamic registration as backup for reliability
+            if (sExportReceiver == null) {
+                sExportReceiver = new DataExportReceiver();
+                IntentFilter filter = new IntentFilter(DataExportReceiver.ACTION_EXPORT_DATA);
+                // Handle Android 13+ receiver flag
+                if (android.os.Build.VERSION.SDK_INT >= 33) {
+                     context.registerReceiver(sExportReceiver, filter, Context.RECEIVER_EXPORTED);
+                } else {
+                     context.registerReceiver(sExportReceiver, filter);
+                }
+            }
+            Log.i(TAG, "Export receiver registered dynamically");
 
             Log.i(TAG, "=== DEFAULT PROVIDER INITIALIZED SUCCESSFULLY ===");
             Log.i(TAG, "All hooks and services are now active");
@@ -66,6 +78,12 @@ public class DefaultProvider extends AbstractContentProvider {
     @Override
     public void shutdown() {
         super.shutdown();
-        // Dynamic receiver removed, so nothing to unregister here regarding export
+        Context context = getContext();
+        if (context != null && sExportReceiver != null) {
+            try {
+                context.unregisterReceiver(sExportReceiver);
+                Log.d(TAG, "Export receiver unregistered");
+            } catch (Exception ignored) {}
+        }
     }
 }

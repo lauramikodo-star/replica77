@@ -227,7 +227,15 @@ public class AppDataManager {
                     continue;
                 }
 
+                // Exclude Cache Directories
                 if (file.isDirectory()) {
+                    if (file.getName().equalsIgnoreCase("cache") ||
+                        file.getName().equalsIgnoreCase("code_cache") ||
+                        file.getName().equalsIgnoreCase("lib") ||
+                        file.getName().equalsIgnoreCase("no_backup")) {
+                        Log.d(TAG, "Skipping directory: " + file.getName());
+                        continue;
+                    }
                     addDirectoryToZip(zos, file, basePathLength, zipPathPrefix);
                 } else {
                     String relativePath = file.getAbsolutePath().substring(basePathLength);
