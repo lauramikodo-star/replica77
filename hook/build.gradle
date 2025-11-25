@@ -1,0 +1,20 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.applisto.appcloner'
+    compileSdk 33
+
+    defaultConfig {
+        applicationId "com.applisto.appcloner"
+        minSdk 21
+        targetSdk 33
+        versionCode 1
+        versionName "1.0"
+    }
+}
+
+dependencies {
+    implementation 'top.canyie.pine:core:0.3.0'
+}

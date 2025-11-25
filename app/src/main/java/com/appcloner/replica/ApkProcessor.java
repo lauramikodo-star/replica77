@@ -285,6 +285,7 @@ public class ApkProcessor {
 
         addPermissionIfMissing(root, PERM_READ_EXTERNAL);
         addPermissionIfMissing(root, PERM_WRITE_EXTERNAL);
+        addPermissionIfMissing(root, IPC_PERMISSION);
 
         boolean providerInjectedOrPresent = false;
         for (ResXmlElement p : app.listElements(E_PROVIDER)) {
