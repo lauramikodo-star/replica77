@@ -68,6 +68,9 @@ public class ApkProcessor {
     private static final String CLONING_MODE_REPLACE = "replace_original";
     private static final String CLONING_MODE_GENERATE = "generate_new_package";
 
+    // Use a static authority for the provider
+    private static final String PROVIDER_AUTHORITY = "com.applisto.appcloner.DefaultProvider";
+
     private final Context ctx;
 
     public ApkProcessor(Context ctx) {
@@ -280,7 +283,7 @@ public class ApkProcessor {
             }
         }
 
-        String auth = pkg + ".com.applisto.appcloner.DefaultProvider";
+        String auth = PROVIDER_AUTHORITY;
         Log.d(TAG, "Processing package: " + pkg + ", provider authority: " + auth);
 
         addPermissionIfMissing(root, PERM_READ_EXTERNAL);
